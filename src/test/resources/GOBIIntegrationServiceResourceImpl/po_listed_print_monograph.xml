@@ -51,6 +51,10 @@
           <Amount>16</Amount>
           <Currency>USD</Currency>
         </ListPrice>
+        <NetPrice>
+          <Amount>16</Amount>
+          <Currency>USD</Currency>
+        </NetPrice>        
         <LocalData>
           <Description>LocalData2</Description>
           <Value>B\PR</Value>

@@ -2,12 +2,17 @@ package org.folio.rest.impl;
 
 import java.io.Reader;
 import java.util.Map;
+import java.util.Random;
 import java.util.concurrent.CompletionException;
+import java.util.stream.Collectors;
 
+import org.folio.gobi.GobiPurchaseOrderParser;
 import org.folio.gobi.GobiResponseWriter;
+import org.folio.gobi.exceptions.GobiPurchaseOrderParserException;
 import org.folio.gobi.exceptions.HttpException;
 import org.folio.rest.RestVerticle;
 import org.folio.rest.gobi.model.GobiResponse;
+import org.folio.rest.gobi.model.ResponseError;
 import org.folio.rest.jaxrs.resource.GOBIIntegrationServiceResource;
 import org.folio.rest.tools.client.HttpClientFactory;
 import org.folio.rest.tools.client.Response;
@@ -40,27 +45,46 @@ public class GOBIIntegrationServiceResourceImpl implements GOBIIntegrationServic
       Handler<AsyncResult<javax.ws.rs.core.Response>> asyncResultHandler, Context vertxContext)
       throws Exception {
 
-    HttpClientInterface httpClient = getHttpClient(okapiHeaders);
-    PostGobiOrdersHelper helper = new PostGobiOrdersHelper(httpClient, asyncResultHandler, okapiHeaders,
-        vertxContext);
+    final GobiResponse response = new GobiResponse();
+    final GobiPurchaseOrderParser parser = GobiPurchaseOrderParser.getParser();
 
-    logger.info("Parsing Request...");
-    helper.parse(entity).thenAccept(gobiPO -> {
-      logger.info("Mapping Request...");
-      helper.map(gobiPO).thenAccept(compPO -> {
-        logger.info("Calling mod-orders...");
-        helper.placeOrder(compPO).thenAccept(poLineNumber -> {
-          GobiResponse gobiResponse = new GobiResponse();
-          gobiResponse.setPoLineNumber(poLineNumber);
+    try {
+      parser.parse(entity);
+    } catch (GobiPurchaseOrderParserException e) {
+      final ResponseError re = new ResponseError();
+      re.setCode("INVALID_XML");
+      re.setMessage(e.getMessage().substring(0, Math.min(e.getMessage().length(), 500)));
+      response.setError(re);
+      asyncResultHandler.handle(Future.succeededFuture(PostGobiOrdersResponse.withXmlBadRequest(GobiResponseWriter.getWriter().write(response))));
+      return;
+    }
 
-          javax.ws.rs.core.Response response = PostGobiOrdersResponse
-            .withXmlCreated(GobiResponseWriter.getWriter().write(gobiResponse));
-          AsyncResult<javax.ws.rs.core.Response> result = Future.succeededFuture(response);
-          asyncResultHandler.handle(result);
+    final String poLineNumber = new Random().ints(16, 0, 9).mapToObj(Integer::toString).collect(Collectors.joining());
+    response.setPoLineNumber(poLineNumber);
 
-        }).exceptionally(helper::handleError);
-      }).exceptionally(helper::handleError);
-    }).exceptionally(helper::handleError);
+    asyncResultHandler.handle(Future.succeededFuture(PostGobiOrdersResponse.withXmlCreated(GobiResponseWriter.getWriter().write(response))));
+//    HttpClientInterface httpClient = getHttpClient(okapiHeaders);
+//    PostGobiOrdersHelper helper = new PostGobiOrdersHelper(httpClient, asyncResultHandler, okapiHeaders,
+//        vertxContext);
+//
+//    
+//    logger.info("Parsing Request...");
+//    helper.parse(entity).thenAccept(gobiPO -> {
+//      logger.info("Mapping Request...");
+//      helper.map(gobiPO).thenAccept(compPO -> {
+//        logger.info("Calling mod-orders...");
+//        helper.placeOrder(compPO).thenAccept(poLineNumber -> {
+//          GobiResponse gobiResponse = new GobiResponse();
+//          gobiResponse.setPoLineNumber(poLineNumber);
+//
+//          javax.ws.rs.core.Response response = PostGobiOrdersResponse
+//            .withXmlCreated(GobiResponseWriter.getWriter().write(gobiResponse));
+//          AsyncResult<javax.ws.rs.core.Response> result = Future.succeededFuture(response);
+//          asyncResultHandler.handle(result);
+//
+//        }).exceptionally(helper::handleError);
+//      }).exceptionally(helper::handleError);
+//    }).exceptionally(helper::handleError);
   }
 
   public static JsonObject verifyAndExtractBody(Response response) {
