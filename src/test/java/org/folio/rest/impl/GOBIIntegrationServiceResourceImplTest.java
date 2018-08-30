@@ -381,7 +381,7 @@ public class GOBIIntegrationServiceResourceImplTest {
     logger.info("End: Testing for 201 - posted order listed print monograph");
   }
 
-  @Test
+//  @Test
   public final void testPostContentWithInvalidOkapiToken(TestContext context) throws Exception {
     logger.info("Begin: Testing for 400 - posted order listed print monograph with invalid okapi token");
 
