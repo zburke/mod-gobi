@@ -21,10 +21,6 @@
     }
   ],
   "requires": [
-    {
-      "id": "orders",
-      "version": "1.0"
-    }
   ],
   "permissionSets": [
     {
